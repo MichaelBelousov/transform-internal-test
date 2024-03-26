@@ -1,5 +1,8 @@
+/** @internal */
 function internal() {}
-const internalVar = 'dont use me'
+/** @internal */
+const internalVar = 'before'
+/** @internal */
 class Internal {}
 
 internal();
