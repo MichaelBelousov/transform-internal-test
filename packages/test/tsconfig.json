@@ -7,9 +7,8 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "lib",
-    "parseAllJsDoc": true,
     "plugins": [
-      { "transform": "./transform-internal.ts" }
+      { "transform": "transform" }
     ]
   },
   "include": ["test.ts"]

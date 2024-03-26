@@ -13,9 +13,9 @@ function checkJsDoc(declaration: any, node: any) {
   if (!declaration || !declaration.jsDoc)
   {
     console.log('declaration')
-    console.log(declaration.jsDoc)
     return undefined;
   }
+  console.log('DOC', declaration.jsDoc)
 
   for (const jsDoc of declaration.jsDoc) {
     if (jsDoc.tags) {
@@ -33,7 +33,7 @@ function checkJsDoc(declaration: any, node: any) {
             name = `${parentSymbol}.${name}`;
         }
 
-        console.log(name);
+        console.log('NAME', name);
         return true;
       }
     }
@@ -56,8 +56,11 @@ export default function (program: ts.Program, pluginConfig: PluginConfig, { ts: 
           const resolved = typeChecker.getResolvedSignature(node as any);
           //checkJsDoc(node, node);
           //console.log(resolved)
-          if (resolved)
+          if (resolved) {
             checkJsDoc(resolved.declaration, node);
+            // return factory.createCallExpression(node.expression, undefined, node.arguments);
+            return factory.createCallExpression(factory.createIdentifier('__INTERNAL_'+(node.expression as any).text), undefined, node.arguments);
+          }
         }
         return tsInstance.visitEachChild(node, visit, ctx);
       }
