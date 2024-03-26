@@ -1,4 +1,4 @@
-import type * as ts from 'typescript';
+import * as ts from 'typescript';
 import type { TransformerExtras, PluginConfig } from 'ts-patch';
 
 function getParentSymbolName(declaration: any) {
@@ -11,12 +11,16 @@ const bannedTags = ["internal"];
 
 function checkJsDoc(declaration: any, node: any) {
   if (!declaration || !declaration.jsDoc)
+  {
+    console.log('declaration')
+    console.log(declaration.jsDoc)
     return undefined;
+  }
 
   for (const jsDoc of declaration.jsDoc) {
     if (jsDoc.tags) {
       for (const tag of jsDoc.tags) {
-        if (!bannedTags.includes(tag.tagName.escapedText) || !isCheckedFile(declaration)) {
+        if (!bannedTags.includes(tag.tagName.escapedText)) {
           continue;
         }
         let name;
@@ -41,15 +45,19 @@ function checkJsDoc(declaration: any, node: any) {
 export default function (program: ts.Program, pluginConfig: PluginConfig, { ts: tsInstance }: TransformerExtras) {
   return (ctx: ts.TransformationContext) => {
     const { factory } = ctx;
+    const typeChecker = program.getTypeChecker();
 
     return (sourceFile: ts.SourceFile) => {
       function visit(node: ts.Node): ts.Node {
-        if (tsInstance.isStringLiteral(node) && node.text === 'before') {
+        if (tsInstance.isStringLiteral(node) && (node as any).text === 'before') {
           return factory.createStringLiteral('after');
         }
         if (tsInstance.isCallExpression(node)) {
+          const resolved = typeChecker.getResolvedSignature(node as any);
           //checkJsDoc(node, node);
-          checkJsDoc(node);
+          //console.log(resolved)
+          if (resolved)
+            checkJsDoc(resolved.declaration, node);
         }
         return tsInstance.visitEachChild(node, visit, ctx);
       }
