@@ -11,11 +11,7 @@ const bannedTags = ["internal"];
 
 function checkJsDoc(declaration: any, node: any) {
   if (!declaration || !declaration.jsDoc)
-  {
-    console.log('declaration')
     return undefined;
-  }
-  console.log('DOC', declaration.jsDoc)
 
   for (const jsDoc of declaration.jsDoc) {
     if (jsDoc.tags) {

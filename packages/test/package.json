@@ -1,18 +1,8 @@
 {
-  "name": "transform-internal",
+  "name": "transform-test-stub",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
-    "build-test": "tspc -p tsconfig.json",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "ts-node": "^10.9.2",
-    "ts-patch": "^3.1.2",
-    "typescript": "^5.4.3",
-    "transform": "../transform"
+    "test": "node -p \"fs.promises.access('fixtures/exhaustive-consumer/lib/index.js')\""
   }
 }
