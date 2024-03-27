@@ -1,13 +1,19 @@
 /// setup /////////////////////////////////////////////////
 
-export let testLocal: any;
+export let _testLocal: any;
 
 /// free functions ////////////////////////////////////////
 
 /** @internal */
-export function internalFunction() {}
+export function internalFunctionDecl() {}
+/** @internal */
+export const internalArrowFunction = () => {};
+/** @internal */
+export const internalFunctionExpr = function(){};
 
-internalFunction();
+internalFunctionDecl();
+internalArrowFunction();
+internalFunctionExpr();
 
 /// free variables ////////////////////////////////////////
 
@@ -16,9 +22,9 @@ export const internalConst = 'internal const';
 export var internalVar = 'internal var';
 export let internalLet = 'internal let';
 
-testLocal = internalConst;
-testLocal = internalVar;
-testLocal = internalLet;
+_testLocal = internalConst;
+_testLocal = internalVar;
+_testLocal = internalLet;
 
 /// classes ////////////////////////////////////////////////
 
@@ -40,8 +46,8 @@ export class PublicClass {
 class DerivedClass extends InternalClass {}
 new InternalClass();
 new PublicClass().internalMethod();
-testLocal = new PublicClass().internalProperty;
-new PublicClass().internalProperty = testLocal;
+_testLocal = new PublicClass().internalProperty;
+new PublicClass().internalProperty = _testLocal;
 
 /// types //////////////////////////////////////////////////
 
@@ -70,6 +76,6 @@ export enum PublicEnum {
   internalEnumMember = 2,
 }
 
-testLocal = InternalEnum.value;
-testLocal = PublicEnum.publicEnumMember;
-testLocal = PublicEnum.internalEnumMember;
+_testLocal = InternalEnum.value;
+_testLocal = PublicEnum.publicEnumMember;
+_testLocal = PublicEnum.internalEnumMember;

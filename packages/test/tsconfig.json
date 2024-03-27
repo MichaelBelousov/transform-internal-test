@@ -8,9 +8,7 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "lib",
-    "plugins": [
-      { "transform": "transform" }
-    ]
+    "types": ["node", "mocha"]
   },
   "include": ["**/*.ts"]
 }
