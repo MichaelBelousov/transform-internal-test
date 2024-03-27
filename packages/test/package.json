@@ -10,7 +10,7 @@
     "@types/chai": "^4.3.14",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.30",
-    "chai": "^5.1.0",
+    "chai": "^4.4.1",
     "exhaustive-pkg": "workspace:*",
     "mocha": "^10.4.0",
     "typescript": "^5.4.3"

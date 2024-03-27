@@ -9,7 +9,8 @@
     "skipLibCheck": true,
     "outDir": "lib",
     "plugins": [
-      { "transform": "transform" }
+      { "transform": "transform", "transformType": ".js" },
+      { "transform": "transform", "afterDeclarations": true, "transformType": ".d.ts" }
     ]
   },
   "include": ["**/*.ts"]
