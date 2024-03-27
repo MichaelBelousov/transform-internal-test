@@ -35,6 +35,12 @@ export interface CustomOptions {
    * @default "{{name}} is an internal API and may change without notice" {@link defaultOptions}
    */
   messageTemplate?: string;
+  /**
+   * Whether to delete the replacement, meaning the output will not have the internal functions
+   * accessible by name at all
+   * @default false
+   */
+  deleteReplacement?: boolean;
 }
 
 export const defaultOptions = {
@@ -93,82 +99,260 @@ export default function (
   }
 
   return (ctx: ts.TransformationContext) => {
-    const { factory } = ctx;
+    const { factory: f } = ctx;
     const typeChecker = program.getTypeChecker();
 
     return (sourceFile: ts.SourceFile) => {
       function visit(node: ts.Node): ts.Node | ts.Node[] | undefined {
-        if (ts.isFunctionDeclaration(node)) {
-          const message = options.messageTemplate
-            .replace(/(?<!\\)\{\{name}}/, `${node.name?.text}`);
+        // HACK: `do {} while(false)` so we can break out early to the single exit
+        do {
+          if (ts.isFunctionDeclaration(node)) {
+            assert(node.name, "can you even export an anonymous function, and why are you marking it @internal?");
 
-          assert(node.name, "can you even export an anonymous function, and why are you marking it @internal?");
+            const resolved = typeChecker.getSymbolAtLocation(node.name);
 
-          const newName = `${options.internalPrefix}${node.name.text}`;
+            if (!resolved || !checkJsDoc(resolved.valueDeclaration))
+              break;
 
-          const renamed = factory.createFunctionDeclaration(
-            node.modifiers,
-            undefined,
-            newName,
-            node.typeParameters,
-            node.parameters,
-            node.type,
-            node.body,
-          );
+            const message = options.messageTemplate
+              .replace(/(?<!\\)\{\{name}}/, `${node.name?.text}`);
 
-          const thunk = factory.createFunctionDeclaration(
-            node.modifiers,
-            undefined,
-            node.name ? `${node.name.text}` : undefined,
-            node.typeParameters,
-            [
-              factory.createParameterDeclaration(
-                undefined,
-                factory.createToken(ts.SyntaxKind.DotDotDotToken),
-                factory.createIdentifier("args"),
-                undefined,
-                factory.createTypeReferenceNode(
-                  // FIXME: assumes typescript is compiling with tslib enabled, should verify earlier
-                  factory.createIdentifier("Parameters"),
-                  [factory.createTypeQueryNode(factory.createIdentifier(newName))],
-                ),
-                undefined,
-              ),
-            ],
-            node.type,
-            factory.createBlock([
-              factory.createExpressionStatement(
-                factory.createCallExpression(
-                  factory.createPropertyAccessExpression(
-                    factory.createIdentifier("console"),
-                    factory.createIdentifier("warn"),
+            const newName = `${options.internalPrefix}${node.name.text}`;
+
+            const renamed = f.createFunctionDeclaration(
+              node.modifiers,
+              undefined,
+              newName,
+              node.typeParameters,
+              node.parameters,
+              node.type,
+              node.body,
+            );
+
+            if (pluginConfig.deleteReplacement) {
+              return [renamed];
+            }
+
+            const replacement = f.createFunctionDeclaration(
+              node.modifiers,
+              undefined,
+              node.name.text,
+              node.typeParameters,
+              [
+                f.createParameterDeclaration(
+                  undefined,
+                  f.createToken(ts.SyntaxKind.DotDotDotToken),
+                  f.createIdentifier("args"),
+                  undefined,
+                  f.createTypeReferenceNode(
+                    // FIXME: assumes typescript is compiling with tslib enabled, should verify earlier
+                    f.createIdentifier("Parameters"),
+                    [f.createTypeQueryNode(f.createIdentifier(newName))],
                   ),
                   undefined,
+                ),
+              ],
+              node.type,
+              pluginConfig.transformType === ".js" 
+                ? f.createBlock([
+                    f.createExpressionStatement(
+                      f.createCallExpression(
+                        f.createPropertyAccessExpression(
+                          f.createIdentifier("console"),
+                          f.createIdentifier("warn"),
+                        ),
+                        undefined,
+                        [
+                          // FIXME: better template handling
+                          f.createStringLiteral(message)
+                        ],
+                      )
+                    ),
+                    f.createReturnStatement(
+                      f.createCallExpression(
+                        f.createIdentifier(newName),
+                        // FIXME: should forward the type parameters here
+                        undefined,
+                        [f.createSpreadElement(f.createIdentifier('args'))],
+                      )
+                    ),
+                  ], true)
+                : undefined,
+            );
+
+            return [renamed, replacement];
+
+            // FIXME: note that
+            // ```
+            // export const { x } = { x;: 10 }; is not supported by this
+            // ```
+            // I'm not sure that even works?
+          } else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+            const resolved = typeChecker.getSymbolAtLocation(node.name);
+
+            if (!resolved || !checkJsDoc(resolved.valueDeclaration))
+              break;
+
+            const newName = `${options.internalPrefix}${node.name.text}`;
+
+            const message = options.messageTemplate
+              .replace(/(?<!\\)\{\{name}}/, `${node.name.text}`);
+
+            const renamed = f.createVariableDeclaration(
+              f.createIdentifier(newName),
+              undefined,
+              node.type,
+              node.initializer,
+            );
+
+            if (pluginConfig.deleteReplacement) {
+              return [renamed];
+            }
+
+            // FIXME: proxy is not valid for primitives
+            const replacement = f.createVariableDeclaration(
+              f.createIdentifier(node.name.text),
+              undefined,
+              node.type,
+              f.createNewExpression(f.createIdentifier('Proxy'), undefined, [
+                f.createIdentifier(newName),
+                // NOTE: I think it will be better to dynamically generate this to support custom user
+                // warning APIs and to be generally terser
+                f.createObjectLiteralExpression(
                   [
-                    // FIXME: better template handling
-                    factory.createStringLiteral(message)
+                    f.createMethodDeclaration(
+                      undefined,
+                      undefined,
+                      f.createIdentifier('get'),
+                      undefined,
+                      undefined,
+                      [
+                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('obj')),
+                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('key')),
+                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('recv')),
+                      ],
+                      undefined,
+                      f.createBlock(
+                        [
+                          f.createExpressionStatement(
+                            f.createCallExpression(
+                              f.createPropertyAccessExpression(f.createIdentifier('console'), f.createIdentifier('warn')),
+                              undefined,
+                              [f.createStringLiteral(message)]
+                            )
+                          ),
+                          f.createReturnStatement(
+                            f.createCallExpression(
+                              f.createPropertyAccessExpression(
+                                f.createIdentifier('Reflect'),
+                                f.createIdentifier('get')
+                              ),
+                              undefined,
+                              [
+                                f.createIdentifier('obj'),
+                                f.createIdentifier('key'),
+                                f.createIdentifier('recv')
+                              ]
+                            )
+                          )
+                        ],
+                        true
+                      )
+                    ),
+                    f.createMethodDeclaration(
+                      undefined,
+                      undefined,
+                      f.createIdentifier('construct'),
+                      undefined,
+                      undefined,
+                      [
+                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('obj')),
+                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('args')),
+                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('newTarget')),
+                      ],
+                      undefined,
+                      f.createBlock(
+                        [
+                          f.createExpressionStatement(
+                            f.createCallExpression(
+                              f.createPropertyAccessExpression(f.createIdentifier('console'), f.createIdentifier('warn')),
+                              undefined,
+                              [f.createStringLiteral(message)]
+                            )
+                          ),
+                          f.createReturnStatement(
+                            f.createCallExpression(
+                              f.createPropertyAccessExpression(
+                                f.createIdentifier('Reflect'),
+                                f.createIdentifier('construct')
+                              ),
+                              undefined,
+                              [
+                                f.createIdentifier('obj'),
+                                f.createIdentifier('args'),
+                                f.createIdentifier('newTarget')
+                              ]
+                            )
+                          )
+                        ],
+                        true
+                      )
+                    ),
+                    f.createMethodDeclaration(
+                      undefined,
+                      undefined,
+                      f.createIdentifier('apply'),
+                      undefined,
+                      undefined,
+                      [
+                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('obj')),
+                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('_this')),
+                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('args')),
+                      ],
+                      undefined,
+                      f.createBlock(
+                        [
+                          f.createExpressionStatement(
+                            f.createCallExpression(
+                              f.createPropertyAccessExpression(f.createIdentifier('console'), f.createIdentifier('warn')),
+                              undefined,
+                              [f.createStringLiteral(message)]
+                            )
+                          ),
+                          f.createReturnStatement(
+                            f.createCallExpression(
+                              f.createPropertyAccessExpression(
+                                f.createIdentifier('Reflect'),
+                                f.createIdentifier('apply')
+                              ),
+                              undefined,
+                              [
+                                f.createIdentifier('obj'),
+                                f.createIdentifier('_this'),
+                                f.createIdentifier('args')
+                              ]
+                            )
+                          )
+                        ],
+                        true
+                      )
+                    ),
                   ],
+                  false
                 )
-              ),
-              factory.createReturnStatement(
-                factory.createCallExpression(
-                  factory.createIdentifier(newName),
-                  undefined,
-                  [factory.createSpreadElement(factory.createIdentifier('args'))],
-                )
-              ),
-            ], true),
-          );
+              ])
+            );
 
-          return [renamed, thunk];
+            return [renamed, replacement];
 
-        } else if (ts.isIdentifier(node)) {
-          const resolved = typeChecker.getSymbolAtLocation(node);
-          if (resolved) {
-            if (checkJsDoc(resolved.valueDeclaration))
-              return factory.createIdentifier(`__INTERNAL_${node.text}`);
+          } else if (ts.isIdentifier(node)) {
+            const resolved = typeChecker.getSymbolAtLocation(node);
+            if (resolved) {
+              if (checkJsDoc(resolved.valueDeclaration))
+                return f.createIdentifier(`__INTERNAL_${node.text}`);
+            }
           }
-        }
+        } while (false);
 
         return ts.visitEachChild(node, visit, ctx);
       }
