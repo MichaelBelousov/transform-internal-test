@@ -30,16 +30,6 @@ importers:
         specifier: ^5.4.3
         version: 5.4.3
 
-  packages/test/fixtures/exhaustive-consumer:
-    dependencies:
-      exhaustive-pkg:
-        specifier: workspace:*
-        version: link:../exhaustive-pkg
-    devDependencies:
-      typescript:
-        specifier: ^5.4.3
-        version: 5.4.3
-
   packages/test/fixtures/exhaustive-pkg:
     devDependencies:
       transform:
@@ -54,6 +44,9 @@ importers:
 
   packages/transform:
     devDependencies:
+      '@types/node':
+        specifier: ^20.11.30
+        version: 20.11.30
       debug:
         specifier: ^4.3.4
         version: 4.3.4(supports-color@8.1.1)
