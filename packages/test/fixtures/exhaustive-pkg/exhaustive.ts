@@ -1,18 +1,29 @@
+/// setup /////////////////////////////////////////////////
+
+export let testLocal: any;
+
+/// free functions ////////////////////////////////////////
+
 /** @internal */
 export function internalFunction() {}
 
 internalFunction();
 
-/** @internal */
-export const internalVar = 'internal';
+/// free variables ////////////////////////////////////////
 
-(globalThis as any)._test = internalVar;
+/** @internal */
+export const internalConst = 'internal const';
+export var internalVar = 'internal var';
+export let internalLet = 'internal let';
+
+testLocal = internalConst;
+testLocal = internalVar;
+testLocal = internalLet;
+
+/// classes ////////////////////////////////////////////////
 
 /** @internal */
 export class InternalClass {}
-
-new InternalClass();
-
 /** @public */
 export class PublicClass {
   /** @internal */
@@ -25,22 +36,31 @@ export class PublicClass {
   public constructor() {}
 }
 
+// technically a lint rule should complain that this is not marked as internal
+class DerivedClass extends InternalClass {}
+new InternalClass();
 new PublicClass().internalMethod();
-(globalThis as any)._publicClass_internalProperty = new PublicClass().internalProperty;
-new PublicClass().internalProperty = 3;
+testLocal = new PublicClass().internalProperty;
+new PublicClass().internalProperty = testLocal;
 
+/// types //////////////////////////////////////////////////
+
+// TODO: need to recommend a lint rule that detects if this reaches the package level exports
 /** @internal */
 export interface InternalInterface {}
-
-const interfaceInst: InternalInterface = {};
-
 /** @internal */
 export type InternalType = {}
 
-const typeInst: InternalType = {};
+// technically a lint rule should disallow (public) exporting variables of internal type
+export const interfaceInst: InternalInterface = {};
+export const typeInst: InternalType = {};
+
+/// enums //////////////////////////////////////////////////
 
 /** @internal */
-export enum InternalEnum {}
+export enum InternalEnum {
+  value = 0,
+}
 
 /** @public */
 export enum PublicEnum {
@@ -49,3 +69,7 @@ export enum PublicEnum {
   /** @internal */
   internalEnumMember = 2,
 }
+
+testLocal = InternalEnum.value;
+testLocal = PublicEnum.publicEnumMember;
+testLocal = PublicEnum.internalEnumMember;
