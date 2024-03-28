@@ -31,7 +31,7 @@ describe("exhaustive-pkg", () => {
       expect(consoleWarnings).to.have.length(1);
       expect(consoleWarnings[0][0]).to.match(/is an internal API and may change without notice/);
       // FIXME:
-      //ExhaustivePkg.__INTERNAL_internalArrowFunction();
+      ExhaustivePkg.__INTERNAL_internalArrowFunction();
       expect(consoleWarnings).to.have.length(1);
     });
 
@@ -40,7 +40,7 @@ describe("exhaustive-pkg", () => {
       expect(consoleWarnings).to.have.length(1);
       expect(consoleWarnings[0][0]).to.match(/is an internal API and may change without notice/);
       // FIXME:
-      //ExhaustivePkg.__INTERNAL_internalFunctionExpr();
+      ExhaustivePkg.__INTERNAL_internalFunctionExpr();
       expect(consoleWarnings).to.have.length(1);
     });
   });

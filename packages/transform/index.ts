@@ -13,8 +13,6 @@ function getParentSymbolName(declaration: any) {
   return undefined;
 }
 
-const bannedTags = ["internal"];
-
 export interface CustomOptions {
   /**
    * Use this for the "afterDeclarations" portion of the transform
@@ -41,11 +39,17 @@ export interface CustomOptions {
    * @default false
    */
   deleteReplacement?: boolean;
+  /**
+   * JSDoc tags to consider as marking an API as internal.
+   * @default ["internal"] {@link defaultOptions}
+   */
+  internalMarkTags?: string[];
 }
 
 export const defaultOptions = {
   internalPrefix: "__INTERNAL_",
   messageTemplate: "{{name}} is an internal API and may change without notice",
+  internalMarkTags: ["internal"],
 } satisfies CustomOptions;
 
 /** Changes string literal 'before' to 'after' */
@@ -71,31 +75,14 @@ export default function (
   const options = { ...defaultOptions, ...pluginConfig };
 
   function checkJsDoc(declaration: any): boolean {
-    if (!declaration || !declaration.jsDoc)
-      return false;
+    if (!declaration) return false;
 
-    for (const jsDoc of declaration.jsDoc) {
-      if (jsDoc.tags) {
-        for (const tag of jsDoc.tags) {
-          if (!bannedTags.includes(tag.tagName.escapedText)) {
-            continue;
-          }
-          let name;
-          if (declaration.kind === ts.SyntaxKind.Constructor)
-            name = declaration.parent.symbol.escapedName;
-          else {
-            name = declaration.symbol.escapedName;
-            const parentSymbol = getParentSymbolName(declaration);
-            if (parentSymbol)
-              name = `${parentSymbol}.${name}`;
-          }
+    const tags = declaration.getJsDocTags?.()
+      ?? (declaration.jsDoc as any[])?.flatMap((j) => j.tags);
 
-          return true;
-        }
-      }
-    }
+    if (!tags) return false;
 
-    return false;
+    return tags.some((tag: any) => options.internalMarkTags.includes(tag.name || tag.tagName?.escapedText));
   }
 
   return (ctx: ts.TransformationContext) => {
@@ -190,8 +177,10 @@ export default function (
           } else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
             const resolved = typeChecker.getSymbolAtLocation(node.name);
 
-            if (!resolved || !checkJsDoc(resolved.valueDeclaration))
+            if (!resolved || !checkJsDoc(resolved)) {
+              debugger;
               break;
+            }
 
             const newName = `${options.internalPrefix}${node.name.text}`;
 
