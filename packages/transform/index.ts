@@ -171,16 +171,15 @@ export default function (
 
             // FIXME: note that
             // ```
-            // export const { x } = { x;: 10 }; is not supported by this
+            // export const { x } = { x: 10 }; is not supported by this
             // ```
-            // I'm not sure that even works?
+            // I'm not sure that is even exportable but am too lazy to check atm
+            // FIXME: emit a custom diagnostic?
           } else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
             const resolved = typeChecker.getSymbolAtLocation(node.name);
 
-            if (!resolved || !checkJsDoc(resolved)) {
-              debugger;
+            if (!resolved || !checkJsDoc(resolved))
               break;
-            }
 
             const newName = `${options.internalPrefix}${node.name.text}`;
 
@@ -198,138 +197,143 @@ export default function (
               return [renamed];
             }
 
-            // FIXME: proxy is not valid for primitives
+            // FIXME: proxy is not valid for primitives (maybe do: (() => { try {} catch {} })())?
+            // on commonjs we can technically still trap external access to exports...
+            //ctx.hoistVariableDeclaration();
             const replacement = f.createVariableDeclaration(
               f.createIdentifier(node.name.text),
               undefined,
+              // FIXME: this doesn't give a type in the case of a (const) initializer
               node.type,
-              f.createNewExpression(f.createIdentifier('Proxy'), undefined, [
-                f.createIdentifier(newName),
-                // NOTE: I think it will be better to dynamically generate this to support custom user
-                // warning APIs and to be generally terser
-                f.createObjectLiteralExpression(
-                  [
-                    f.createMethodDeclaration(
-                      undefined,
-                      undefined,
-                      f.createIdentifier('get'),
-                      undefined,
-                      undefined,
-                      [
-                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('obj')),
-                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('key')),
-                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('recv')),
-                      ],
-                      undefined,
-                      f.createBlock(
+              options.transformType === ".js"
+              ? f.createNewExpression(f.createIdentifier('Proxy'), undefined, [
+                  f.createIdentifier(newName),
+                  // NOTE: I think it will be better to dynamically generate this to support custom user
+                  // warning APIs and to be generally terser
+                  f.createObjectLiteralExpression(
+                    [
+                      f.createMethodDeclaration(
+                        undefined,
+                        undefined,
+                        f.createIdentifier('get'),
+                        undefined,
+                        undefined,
                         [
-                          f.createExpressionStatement(
-                            f.createCallExpression(
-                              f.createPropertyAccessExpression(f.createIdentifier('console'), f.createIdentifier('warn')),
-                              undefined,
-                              [f.createStringLiteral(message)]
-                            )
-                          ),
-                          f.createReturnStatement(
-                            f.createCallExpression(
-                              f.createPropertyAccessExpression(
-                                f.createIdentifier('Reflect'),
-                                f.createIdentifier('get')
-                              ),
-                              undefined,
-                              [
-                                f.createIdentifier('obj'),
-                                f.createIdentifier('key'),
-                                f.createIdentifier('recv')
-                              ]
-                            )
-                          )
+                          f.createParameterDeclaration(undefined, undefined, f.createIdentifier('obj')),
+                          f.createParameterDeclaration(undefined, undefined, f.createIdentifier('key')),
+                          f.createParameterDeclaration(undefined, undefined, f.createIdentifier('recv')),
                         ],
-                        true
-                      )
-                    ),
-                    f.createMethodDeclaration(
-                      undefined,
-                      undefined,
-                      f.createIdentifier('construct'),
-                      undefined,
-                      undefined,
-                      [
-                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('obj')),
-                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('args')),
-                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('newTarget')),
-                      ],
-                      undefined,
-                      f.createBlock(
+                        undefined,
+                        f.createBlock(
+                          [
+                            f.createExpressionStatement(
+                              f.createCallExpression(
+                                f.createPropertyAccessExpression(f.createIdentifier('console'), f.createIdentifier('warn')),
+                                undefined,
+                                [f.createStringLiteral(message)]
+                              )
+                            ),
+                            f.createReturnStatement(
+                              f.createCallExpression(
+                                f.createPropertyAccessExpression(
+                                  f.createIdentifier('Reflect'),
+                                  f.createIdentifier('get')
+                                ),
+                                undefined,
+                                [
+                                  f.createIdentifier('obj'),
+                                  f.createIdentifier('key'),
+                                  f.createIdentifier('recv')
+                                ]
+                              )
+                            )
+                          ],
+                          true
+                        )
+                      ),
+                      f.createMethodDeclaration(
+                        undefined,
+                        undefined,
+                        f.createIdentifier('construct'),
+                        undefined,
+                        undefined,
                         [
-                          f.createExpressionStatement(
-                            f.createCallExpression(
-                              f.createPropertyAccessExpression(f.createIdentifier('console'), f.createIdentifier('warn')),
-                              undefined,
-                              [f.createStringLiteral(message)]
-                            )
-                          ),
-                          f.createReturnStatement(
-                            f.createCallExpression(
-                              f.createPropertyAccessExpression(
-                                f.createIdentifier('Reflect'),
-                                f.createIdentifier('construct')
-                              ),
-                              undefined,
-                              [
-                                f.createIdentifier('obj'),
-                                f.createIdentifier('args'),
-                                f.createIdentifier('newTarget')
-                              ]
-                            )
-                          )
+                          f.createParameterDeclaration(undefined, undefined, f.createIdentifier('obj')),
+                          f.createParameterDeclaration(undefined, undefined, f.createIdentifier('args')),
+                          f.createParameterDeclaration(undefined, undefined, f.createIdentifier('newTarget')),
                         ],
-                        true
-                      )
-                    ),
-                    f.createMethodDeclaration(
-                      undefined,
-                      undefined,
-                      f.createIdentifier('apply'),
-                      undefined,
-                      undefined,
-                      [
-                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('obj')),
-                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('_this')),
-                        f.createParameterDeclaration(undefined, undefined, f.createIdentifier('args')),
-                      ],
-                      undefined,
-                      f.createBlock(
+                        undefined,
+                        f.createBlock(
+                          [
+                            f.createExpressionStatement(
+                              f.createCallExpression(
+                                f.createPropertyAccessExpression(f.createIdentifier('console'), f.createIdentifier('warn')),
+                                undefined,
+                                [f.createStringLiteral(message)]
+                              )
+                            ),
+                            f.createReturnStatement(
+                              f.createCallExpression(
+                                f.createPropertyAccessExpression(
+                                  f.createIdentifier('Reflect'),
+                                  f.createIdentifier('construct')
+                                ),
+                                undefined,
+                                [
+                                  f.createIdentifier('obj'),
+                                  f.createIdentifier('args'),
+                                  f.createIdentifier('newTarget')
+                                ]
+                              )
+                            )
+                          ],
+                          true
+                        )
+                      ),
+                      f.createMethodDeclaration(
+                        undefined,
+                        undefined,
+                        f.createIdentifier('apply'),
+                        undefined,
+                        undefined,
                         [
-                          f.createExpressionStatement(
-                            f.createCallExpression(
-                              f.createPropertyAccessExpression(f.createIdentifier('console'), f.createIdentifier('warn')),
-                              undefined,
-                              [f.createStringLiteral(message)]
-                            )
-                          ),
-                          f.createReturnStatement(
-                            f.createCallExpression(
-                              f.createPropertyAccessExpression(
-                                f.createIdentifier('Reflect'),
-                                f.createIdentifier('apply')
-                              ),
-                              undefined,
-                              [
-                                f.createIdentifier('obj'),
-                                f.createIdentifier('_this'),
-                                f.createIdentifier('args')
-                              ]
-                            )
-                          )
+                          f.createParameterDeclaration(undefined, undefined, f.createIdentifier('obj')),
+                          f.createParameterDeclaration(undefined, undefined, f.createIdentifier('_this')),
+                          f.createParameterDeclaration(undefined, undefined, f.createIdentifier('args')),
                         ],
-                        true
-                      )
-                    ),
-                  ],
-                  false
-                )
-              ])
+                        undefined,
+                        f.createBlock(
+                          [
+                            f.createExpressionStatement(
+                              f.createCallExpression(
+                                f.createPropertyAccessExpression(f.createIdentifier('console'), f.createIdentifier('warn')),
+                                undefined,
+                                [f.createStringLiteral(message)]
+                              )
+                            ),
+                            f.createReturnStatement(
+                              f.createCallExpression(
+                                f.createPropertyAccessExpression(
+                                  f.createIdentifier('Reflect'),
+                                  f.createIdentifier('apply')
+                                ),
+                                undefined,
+                                [
+                                  f.createIdentifier('obj'),
+                                  f.createIdentifier('_this'),
+                                  f.createIdentifier('args')
+                                ]
+                              )
+                            )
+                          ],
+                          true
+                        )
+                      ),
+                    ],
+                    false
+                  )
+                ])
+              : undefined
             );
 
             return [renamed, replacement];

@@ -19,7 +19,9 @@ internalFunctionExpr();
 
 /** @internal */
 export const internalConst = 'internal const';
+/** @internal */
 export var internalVar = 'internal var';
+/** @internal */
 export let internalLet = 'internal let';
 
 _testLocal = internalConst;

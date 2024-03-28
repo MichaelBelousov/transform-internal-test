@@ -44,4 +44,47 @@ describe("exhaustive-pkg", () => {
       expect(consoleWarnings).to.have.length(1);
     });
   });
+
+  describe("variables", () => {
+    // HACK: currently direct access is not trapped
+    // (although it could be in at least commonjs)
+    it("var", () => {
+      ExhaustivePkg.internalVar.toString();
+      expect(consoleWarnings).to.have.length(1);
+      expect(consoleWarnings[0][0]).to.match(/is an internal API and may change without notice/);
+      ExhaustivePkg.__INTERNAL_internalVar.toString();
+      expect(consoleWarnings).to.have.length(1);
+    });
+
+    it("let", () => {
+      ExhaustivePkg.internalLet.toString();
+      expect(consoleWarnings).to.have.length(1);
+      expect(consoleWarnings[0][0]).to.match(/is an internal API and may change without notice/);
+      // FIXME:
+      ExhaustivePkg.__INTERNAL_internalLet.toString();
+      expect(consoleWarnings).to.have.length(1);
+    });
+
+    it("const", () => {
+      ExhaustivePkg.internalConst.toString();
+      expect(consoleWarnings).to.have.length(1);
+      expect(consoleWarnings[0][0]).to.match(/is an internal API and may change without notice/);
+      // FIXME:
+      ExhaustivePkg.__INTERNAL_internalConst.toString();
+      expect(consoleWarnings).to.have.length(1);
+    });
+  });
+
+  describe("classes", () => {
+  });
+
+  describe("types", () => {
+    it("interface", () => {
+      const _value: ExhaustivePkg.InternalInterface = undefined as any;
+    });
+
+    it("type", () => {
+      const _value: ExhaustivePkg.InternalType = undefined as any;
+    });
+  });
 });
