@@ -197,9 +197,45 @@ export default function (
               return [renamed];
             }
 
-            // FIXME: proxy is not valid for primitives (maybe do: (() => { try {} catch {} })())?
-            // on commonjs we can technically still trap external access to exports...
-            //ctx.hoistVariableDeclaration();
+            const reexport = `
+              export const ${node.name.text} = ${node.getFullText()}
+            `;
+
+            // this probably doesn't work
+            /*
+            ts.updateSourceFile(
+              node.getSourceFile(),
+              reexport,
+              {
+                span: {
+                  start: 0,
+                  length: 0,
+                },
+                newLength: reexport.length,
+              },
+              true
+            );
+            */
+
+            f.updateSourceFile(
+              node.getSourceFile(),
+              [
+                f.createVariableStatement(
+                  undefined, // FIXME: export
+                  f.createVariableDeclarationList(
+                    [
+                      f.createVariableDeclaration(
+                        `exports.${newName}`,
+                        undefined,
+                        undefined,
+                      ),
+                    ]
+                  )
+                ),
+                ...node.getSourceFile().statements,
+              ]
+            );
+
             const replacement = f.createVariableDeclaration(
               f.createIdentifier(node.name.text),
               undefined,
@@ -207,7 +243,10 @@ export default function (
               node.type,
               options.transformType === ".js"
               ? f.createNewExpression(f.createIdentifier('Proxy'), undefined, [
-                  f.createIdentifier(newName),
+                  f.createPropertyAccessExpression(
+                    f.createIdentifier("exports"),
+                    f.createIdentifier(newName),
+                  ),
                   // NOTE: I think it will be better to dynamically generate this to support custom user
                   // warning APIs and to be generally terser
                   f.createObjectLiteralExpression(
