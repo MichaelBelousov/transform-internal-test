@@ -201,47 +201,13 @@ export default function (
               export const ${node.name.text} = ${node.getFullText()}
             `;
 
-            // this probably doesn't work
-            /*
-            ts.updateSourceFile(
-              node.getSourceFile(),
-              reexport,
-              {
-                span: {
-                  start: 0,
-                  length: 0,
-                },
-                newLength: reexport.length,
-              },
-              true
-            );
-            */
-
-            f.updateSourceFile(
-              node.getSourceFile(),
-              [
-                f.createVariableStatement(
-                  undefined, // FIXME: export
-                  f.createVariableDeclarationList(
-                    [
-                      f.createVariableDeclaration(
-                        `exports.${newName}`,
-                        undefined,
-                        undefined,
-                      ),
-                    ]
-                  )
-                ),
-                ...node.getSourceFile().statements,
-              ]
-            );
-
             const replacement = f.createVariableDeclaration(
               f.createIdentifier(node.name.text),
               undefined,
               // FIXME: this doesn't give a type in the case of a (const) initializer
               node.type,
               options.transformType === ".js"
+              // FIXME: wrap in a try/catch to handle primitives
               ? f.createNewExpression(f.createIdentifier('Proxy'), undefined, [
                   f.createPropertyAccessExpression(
                     f.createIdentifier("exports"),
